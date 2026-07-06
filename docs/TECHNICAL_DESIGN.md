@@ -5,6 +5,26 @@
 
 ---
 
+## 2026-07-05 Update Note
+
+This document is preserved as the original 2026-06-27 reconnaissance report. Some implementation facts have changed since it was written.
+
+Current corrections:
+
+- Dashboard dynamic routes are no longer empty. `app/app/(dashboard)/site/[id]`, `post/[id]`, and `band/[id]` all contain route files.
+- `site/[id]` is the active site management surface for listing posts, opening analytics, and reaching site settings.
+- `post/[id]` is the active post editor route and renders the Novel editor.
+- `band/[id]` currently mirrors the post editor shape and is not yet a true band overview/member management surface.
+- Site settings are split into General, Domains, and Appearance tabs.
+- The Bio form wiring bug noted in the original report has been fixed: the Bio form in `site/[id]/settings/page.tsx` now uses `name: "bio"` and writes to `Site.bio`.
+- Logo and cover image upload controls exist in `site/[id]/settings/appearance/page.tsx`.
+- The editor includes a Publish/Unpublish button, but the end-to-end publish/draft flow still needs verification.
+- GitHub coordination is currently being done through the `gh` CLI rather than a custom GitHub MCP server.
+
+For current status, treat `docs/REPOSITORY_STATE_REPORT.md` as the live repository-state document and this file as historical architecture/reconnaissance context.
+
+---
+
 ## 1. Executive Summary
 
 ### What is this application?
