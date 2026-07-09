@@ -1,6 +1,6 @@
 # Technical Design Document: Multi-Band Starter Kit
 
-**Reconnaissance Report by Jester**  
+**Reconnaissance Report by Jester**
 *Date: 2026-06-27*
 
 ---
@@ -358,7 +358,7 @@ Tenant context flows through:
 - **Ownership**: Owns sites via `userId` foreign key
 - **Tenant boundaries**: None — User is a platform-level entity, not tenant-scoped
 - **Fields present**: id, name, username, gh_username, email, emailVerified, image, createdAt, updatedAt
-- **Missing fields**: 
+- **Missing fields**:
   - No role/permission system (all users are equal)
   - No `bandName` — this is on Site, not User
   - No avatar URL fallback handling

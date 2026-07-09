@@ -1,6 +1,6 @@
 # Repository State Report
 
-**Evidence-based inventory of current codebase vs. Flight Plan Epics.**  
+**Evidence-based inventory of current codebase vs. Flight Plan Epics.**
 *Date: 2026-07-05*
 
 ---

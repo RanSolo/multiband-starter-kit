@@ -64,7 +64,7 @@ export default async function SiteSettingsIndex({
         inputAttrs={{
           name: "bio",
           type: "text",
-          defaultValue: data?.bio!,
+          defaultValue: data?.bio ?? "",
           placeholder: "Tell fans what makes this band worth hearing.",
         }}
         handleSubmit={updateSite}
