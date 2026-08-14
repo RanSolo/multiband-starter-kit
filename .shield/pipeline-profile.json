@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "contractVersion": "pipeline.profile.v1",
+  "profileId": "pipeline:starter:database-backed-app",
+  "repository": "RanSolo/multiband-starter-kit",
+  "artifactRevisionId": "sha256:cd97adf95d91622508198c79b73bf66d42b790bea49a15a65013208d32443b6d",
+  "discoveredAt": "1970-01-01T00:00:00.000Z",
+  "supported": [
+    {
+      "modeId": "lint",
+      "evidenceKind": "package-script",
+      "evidenceRef": "pipeline:starter:database-backed-app:lint:package-script",
+      "command": {
+        "commandId": "pipeline:starter:database-backed-app:lint",
+        "executable": "npm",
+        "args": [
+          "run",
+          "lint"
+        ]
+      }
+    },
+    {
+      "modeId": "unit-test",
+      "evidenceKind": "package-script",
+      "evidenceRef": "pipeline:starter:database-backed-app:unit-test:package-script",
+      "command": {
+        "commandId": "pipeline:starter:database-backed-app:unit-test",
+        "executable": "npm",
+        "args": [
+          "run",
+          "test"
+        ]
+      }
+    },
+    {
+      "modeId": "build",
+      "evidenceKind": "package-script",
+      "evidenceRef": "pipeline:starter:database-backed-app:build:package-script",
+      "command": {
+        "commandId": "pipeline:starter:database-backed-app:build",
+        "executable": "npm",
+        "args": [
+          "run",
+          "build"
+        ]
+      }
+    }
+  ],
+  "defaultModes": [
+    "lint",
+    "unit-test",
+    "build"
+  ],
+  "conditional": [],
+  "unavailable": [
+    {
+      "modeId": "typecheck",
+      "reason": "missing-command",
+      "evidenceRef": "pipeline:starter:typecheck:missing-command"
+    },
+    {
+      "modeId": "e2e",
+      "reason": "missing-command",
+      "evidenceRef": "pipeline:starter:e2e:missing-command"
+    },
+    {
+      "modeId": "migration-validation",
+      "reason": "missing-command",
+      "evidenceRef": "pipeline:starter:migration-validation:missing-command"
+    }
+  ],
+  "staleWhenChanged": [
+    "package.json",
+    "package-lock.json",
+    "npm-shrinkwrap.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
+    "bun.lockb"
+  ]
+}

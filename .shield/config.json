@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 3,
+  "repositoryTrustProfileId": "signed_human_gates",
+  "repositoryId": "RanSolo/multiband-starter-kit",
+  "adapterIds": [
+    "github"
+  ],
+  "supportedSeatIds": [
+    "hill",
+    "daisy",
+    "fury",
+    "may",
+    "coulson",
+    "fitz",
+    "simmons"
+  ],
+  "supportedModeIds": [
+    "delivery",
+    "debugger"
+  ],
+  "trustedHumanBindingRefs": [
+    {
+      "seatId": "coulson",
+      "bindingRef": "ed25519:sha256:eON6YVgOv7qiKndFU7pU1EUgCeQ5b2KUWMoF93Z-tzA"
+    },
+    {
+      "seatId": "fitz",
+      "bindingRef": "ed25519:sha256:da9m-tlJ3up9KeO8u-ZajOqi1rKlwW_affJPkHnCTFQ"
+    }
+  ],
+  "paths": {
+    "journals": ".shield/journals",
+    "artifacts": ".shield/artifacts",
+    "reports": ".shield/reports",
+    "temp": ".shield/tmp"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "sourceRepository": "RanSolo/shield-workspace",
+  "sourceRevision": "cdaf96fcfff069cbce36c8136eb87a17f2da36a6",
+  "packages": [
+    {
+      "name": "@shield/mission-preparation",
+      "version": "0.1.0",
+      "path": "vendor/shield/shield-mission-preparation-0.1.0.tgz",
+      "sha256": "bd00a32e5fbb1e6ccd8927d288f67b481ad280bbd9de26be34af0cbea68bf880"
+    },
+    {
+      "name": "@shield/team-system",
+      "version": "0.1.0",
+      "path": "vendor/shield/shield-team-system-0.1.0.tgz",
+      "sha256": "096886309c9d2ec976d5c82e077fb17afe153ab1ef7efe09b875dad4b8b42402"
+    }
+  ]
+}
