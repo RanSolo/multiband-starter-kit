@@ -49,6 +49,8 @@
     "use-debounce": "^10.0.0"
   },
   "devDependencies": {
+    "@shield/mission-preparation": "file:vendor/shield/shield-mission-preparation-0.1.0.tgz",
+    "@shield/team-system": "file:vendor/shield/shield-team-system-0.1.0.tgz",
     "@tailwindcss/forms": "^0.5.7",
     "@tailwindcss/typography": "^0.5.10",
     "@types/js-cookie": "^3.0.6",
