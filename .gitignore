@@ -30,6 +30,9 @@ yarn-error.log*
 .env*
 !.env*.example
 
+# repository-local SHIELD policy, authority, journals, and receipts
+/.shield/
+
 # vercel
 .vercel
 
