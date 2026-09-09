@@ -164,6 +164,14 @@ their inputs are declared; `dev`, `start`, Prisma generation, database setup,
 migrations, and seed effects are not cached. A build or public-route result is
 not considered a pass when the required QA environment or fixture is missing.
 
+For a database-backed build, source the QA environment first (for example,
+`set -a; . ./.env.qa.local; set +a` in a shell). The exact-base checkout and
+the Nx candidate both reach the same unchanged `next-mdx-remote` React
+`useState` prerender failure for the synthetic published post route
+(`/demo.localhost:3000/qa-post`). This is a known pre-existing baseline failure,
+not a passing build or published-post acceptance result, and is intentionally
+outside the Nx adoption scope.
+
 ### Required Environment Variables
 
 | Variable | Purpose |
