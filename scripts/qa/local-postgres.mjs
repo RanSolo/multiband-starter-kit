@@ -12,6 +12,8 @@ const container = "mbsk-nx-qa-postgres";
 const volume = "mbsk-nx-qa-postgres-data";
 const database = "multiband_nx_qa";
 const port = "55432";
+const image =
+  "postgres@sha256:e62fbf9d3e2b49816a32c400ed2dba83e3b361e6833e624024309c35d334b412";
 
 function loadLocalEnv() {
   if (!existsSync(envFile)) {
@@ -103,6 +105,80 @@ function assertSafeTarget() {
   }
 }
 
+function assertExistingQaTarget() {
+  const names = check("docker", [
+    "ps",
+    "-a",
+    "--filter",
+    `name=^${container}$`,
+    "--format",
+    "{{.Names}}",
+  ])
+    .split("\n")
+    .filter(Boolean);
+  if (names.length !== 1 || names[0] !== container) {
+    throw new Error(
+      `Expected exactly the existing QA container ${container}; refusing fixture writes`,
+    );
+  }
+
+  const volumeNames = check("docker", [
+    "volume",
+    "ls",
+    "--filter",
+    `name=^${volume}$`,
+    "--format",
+    "{{.Name}}",
+  ])
+    .split("\n")
+    .filter(Boolean);
+  if (volumeNames.length !== 1 || volumeNames[0] !== volume) {
+    throw new Error(
+      `Expected exactly the existing QA volume ${volume}; refusing fixture writes`,
+    );
+  }
+
+  let inspected;
+  try {
+    inspected = JSON.parse(
+      run("docker", ["inspect", container], { quiet: true }),
+    )[0];
+  } catch (error) {
+    throw new Error(`Unable to inspect ${container}; refusing fixture writes`);
+  }
+
+  const labels = inspected?.Config?.Labels ?? {};
+  const binding = inspected?.HostConfig?.PortBindings?.["5432/tcp"] ?? [];
+  const hasExactPort =
+    binding.length === 1 &&
+    binding[0]?.HostIp === "127.0.0.1" &&
+    binding[0]?.HostPort === port;
+  const hasExactVolume = (inspected?.Mounts ?? []).some(
+    (mount) =>
+      mount.Type === "volume" &&
+      mount.Name === volume &&
+      mount.Destination === "/var/lib/postgresql/data",
+  );
+  const failures = [];
+  if (inspected?.Name !== `/${container}`) failures.push("container name");
+  if (labels["com.docker.compose.project"] !== project)
+    failures.push("Compose project label");
+  if (labels["com.docker.compose.service"] !== service)
+    failures.push("Compose service label");
+  if (inspected?.Config?.Image !== image) failures.push("pinned image digest");
+  if (inspected?.State?.Status !== "running" || !inspected?.State?.Running)
+    failures.push("running state");
+  if (inspected?.State?.Health?.Status !== "healthy")
+    failures.push("healthy state");
+  if (!hasExactPort) failures.push("loopback port binding");
+  if (!hasExactVolume) failures.push("named volume mount");
+  if (failures.length > 0) {
+    throw new Error(
+      `QA identity guard failed (${failures.join(", ")}); refusing fixture writes`,
+    );
+  }
+}
+
 function compose(args) {
   loadLocalEnv();
   run("docker", ["compose", "-p", project, "-f", composeFile, ...args]);
@@ -161,6 +237,67 @@ async function seed() {
         userId: user.id,
       },
     });
+    await prisma.post.upsert({
+      where: { slug_siteId: { slug: "qa-draft", siteId: site.id } },
+      update: {
+        title: "MBSK QA Draft",
+        description: "Synthetic local QA draft.",
+        content: "# MBSK QA Draft\n\nThis draft must not be public.",
+        published: false,
+        userId: user.id,
+      },
+      create: {
+        id: "qa-draft-mbsk-nx",
+        slug: "qa-draft",
+        title: "MBSK QA Draft",
+        description: "Synthetic local QA draft.",
+        content: "# MBSK QA Draft\n\nThis draft must not be public.",
+        published: false,
+        siteId: site.id,
+        userId: user.id,
+      },
+    });
+
+    const alternateSite = await prisma.site.upsert({
+      where: { id: "qa-site-mbsk-nx-alt" },
+      update: {
+        name: "MBSK QA Alternate Band",
+        bandName: "MBSK QA Alternate Band",
+        subdomain: "qa-alt",
+        userId: user.id,
+      },
+      create: {
+        id: "qa-site-mbsk-nx-alt",
+        name: "MBSK QA Alternate Band",
+        bandName: "MBSK QA Alternate Band",
+        description: "Synthetic local QA alternate tenant.",
+        bio: "Synthetic local QA alternate data.",
+        subdomain: "qa-alt",
+        userId: user.id,
+      },
+    });
+    await prisma.post.upsert({
+      where: {
+        slug_siteId: { slug: "qa-other-post", siteId: alternateSite.id },
+      },
+      update: {
+        title: "MBSK QA Other Post",
+        description: "Synthetic local QA alternate post.",
+        content: "# MBSK QA Other Post\n\nThis belongs to another tenant.",
+        published: true,
+        userId: user.id,
+      },
+      create: {
+        id: "qa-other-post-mbsk-nx",
+        slug: "qa-other-post",
+        title: "MBSK QA Other Post",
+        description: "Synthetic local QA alternate post.",
+        content: "# MBSK QA Other Post\n\nThis belongs to another tenant.",
+        published: true,
+        siteId: alternateSite.id,
+        userId: user.id,
+      },
+    });
   } finally {
     await prisma.$disconnect();
   }
@@ -191,10 +328,21 @@ async function main() {
     assertExpectedUrl("POSTGRES_PRISMA_URL");
     assertExpectedUrl("POSTGRES_URL_NON_POOLING");
     run("npx", ["prisma", "migrate", "deploy"]);
+    assertExistingQaTarget();
     await seed();
     return;
   }
-  throw new Error(`Unknown command ${command}; use status, up, or setup`);
+  if (command === "fixture") {
+    loadLocalEnv();
+    assertExpectedUrl("POSTGRES_PRISMA_URL");
+    assertExpectedUrl("POSTGRES_URL_NON_POOLING");
+    assertExistingQaTarget();
+    await seed();
+    return;
+  }
+  throw new Error(
+    `Unknown command ${command}; use status, up, setup, or fixture`,
+  );
 }
 
 main().catch((error) => {

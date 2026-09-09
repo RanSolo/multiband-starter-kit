@@ -147,15 +147,28 @@ cp .env.qa.example .env.qa.local
 node scripts/qa/local-postgres.mjs setup
 ```
 
-The helper refuses an occupied port, existing named container, existing named
-volume, or non-loopback database URL. It uses PostgreSQL 16 at
-`127.0.0.1:55432`, creates deterministic synthetic `demo`/`qa-post` data, and
-never runs `prisma db push` or teardown commands. Check the service with:
+`setup` is only for a fresh dedicated container and volume. For the already
+provisioned QA service, use the idempotent fixture command instead:
+
+```bash
+node scripts/qa/local-postgres.mjs fixture
+```
+
+Before either command writes fixtures, the helper verifies the exact Compose
+project and service labels, pinned PostgreSQL image digest, running and healthy
+state, `127.0.0.1:55432` binding, and named volume mount. It refuses an
+occupied port, an unexpected existing container or volume, or a non-loopback
+database URL. The fixture command upserts only the namespaced synthetic `demo`
+published post, `demo` draft, and `qa-alt` published post. It never runs
+`prisma db push`, deletes data, or tears down resources. Check the service with:
 
 ```bash
 node scripts/qa/local-postgres.mjs status
 npm run build
 npx nx run multiband-app:build
+set -a; . ./.env.qa.local; set +a
+npm run start -- --hostname 127.0.0.1
+node tests/published-post-render.qa.mjs
 ```
 
 The Next.js build is deliberately non-cacheable because static generation reads
@@ -164,13 +177,15 @@ their inputs are declared; `dev`, `start`, Prisma generation, database setup,
 migrations, and seed effects are not cached. A build or public-route result is
 not considered a pass when the required QA environment or fixture is missing.
 
-For a database-backed build, source the QA environment first (for example,
-`set -a; . ./.env.qa.local; set +a` in a shell). The exact-base checkout and
-the Nx candidate both reach the same unchanged `next-mdx-remote` React
-`useState` prerender failure for the synthetic published post route
-(`/demo.localhost:3000/qa-post`). This is a known pre-existing baseline failure,
-not a passing build or published-post acceptance result, and is intentionally
-outside the Nx adoption scope.
+For a database-backed build, source the QA environment before running Next.js.
+The published-post renderer uses `next-mdx-remote/rsc` and compiles normalized
+raw MDX on the server, preserving the existing link, tweet, examples, image,
+and component mappings. The route harness is deliberately uncached, uses only
+loopback origins with explicit tenant Host headers, and checks root, tenant,
+login, published, draft, and cross-tenant behavior. A route result is not a
+pass when the required QA environment or fixture is missing. Middleware
+rewrites must also return the required root and login 200 responses; routing
+failures outside the renderer remain outside this bounded fix.
 
 ### Required Environment Variables
 
