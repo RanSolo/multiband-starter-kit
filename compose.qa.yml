@@ -1,0 +1,23 @@
+name: mbsk-nx-qa
+
+services:
+  postgres:
+    image: postgres@sha256:e62fbf9d3e2b49816a32c400ed2dba83e3b361e6833e624024309c35d334b412
+    container_name: mbsk-nx-qa-postgres
+    environment:
+      POSTGRES_USER: mbsk_qa
+      POSTGRES_PASSWORD: ${MBSK_QA_POSTGRES_PASSWORD:?MBSK_QA_POSTGRES_PASSWORD must be set in .env.qa.local}
+      POSTGRES_DB: multiband_nx_qa
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - mbsk-nx-qa-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mbsk_qa -d multiband_nx_qa"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  mbsk-nx-qa-postgres-data:
+    name: mbsk-nx-qa-postgres-data

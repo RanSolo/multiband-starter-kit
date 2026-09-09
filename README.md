@@ -125,6 +125,45 @@ npx prisma db push
 npm run dev
 ```
 
+### Nx and isolated QA
+
+Nx is adopted in place as an orchestration layer; the existing npm scripts remain
+the source of truth for direct Next.js use. The workspace has three responsibility
+boundaries: `multiband-tests` depends on `multiband-app`, and `multiband-app`
+depends on `multiband-prisma`. Prisma generation is an explicit prerequisite for
+Nx `dev` and `build`.
+
+The repository currently validates with Node.js 26.7.0 and npm 11.19.0. Nx is
+pinned to `22.7.9` and is intentionally Core-only; no Node, Next.js, Prisma, or
+deployment runtime upgrade is implied.
+
+For a non-production public-route/build check, copy `.env.qa.example` to the
+ignored `.env.qa.local`, set a local-only password, then create the dedicated
+loopback PostgreSQL service and apply only committed migrations:
+
+```bash
+cp .env.qa.example .env.qa.local
+# Set MBSK_QA_POSTGRES_PASSWORD and matching URLs in .env.qa.local.
+node scripts/qa/local-postgres.mjs setup
+```
+
+The helper refuses an occupied port, existing named container, existing named
+volume, or non-loopback database URL. It uses PostgreSQL 16 at
+`127.0.0.1:55432`, creates deterministic synthetic `demo`/`qa-post` data, and
+never runs `prisma db push` or teardown commands. Check the service with:
+
+```bash
+node scripts/qa/local-postgres.mjs status
+npm run build
+npx nx run multiband-app:build
+```
+
+The Next.js build is deliberately non-cacheable because static generation reads
+database state. Nx caches only the deterministic lint and test targets after
+their inputs are declared; `dev`, `start`, Prisma generation, database setup,
+migrations, and seed effects are not cached. A build or public-route result is
+not considered a pass when the required QA environment or fixture is missing.
+
 ### Required Environment Variables
 
 | Variable | Purpose |
