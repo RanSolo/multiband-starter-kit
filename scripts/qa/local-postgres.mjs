@@ -184,17 +184,6 @@ async function main() {
     compose(["up", "-d", "--wait", service]);
     return;
   }
-  if (command === "migrate") {
-    loadLocalEnv();
-    assertExpectedUrl("POSTGRES_PRISMA_URL");
-    assertExpectedUrl("POSTGRES_URL_NON_POOLING");
-    run("npx", ["prisma", "migrate", "deploy"]);
-    return;
-  }
-  if (command === "seed") {
-    await seed();
-    return;
-  }
   if (command === "setup") {
     assertSafeTarget();
     compose(["up", "-d", "--wait", service]);
@@ -205,9 +194,7 @@ async function main() {
     await seed();
     return;
   }
-  throw new Error(
-    `Unknown command ${command}; use status, up, migrate, seed, or setup`,
-  );
+  throw new Error(`Unknown command ${command}; use status, up, or setup`);
 }
 
 main().catch((error) => {
