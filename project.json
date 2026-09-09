@@ -1,0 +1,55 @@
+{
+  "$schema": "./node_modules/nx/schemas/project-schema.json",
+  "name": "multiband-app",
+  "root": ".",
+  "sourceRoot": "app",
+  "implicitDependencies": ["multiband-prisma"],
+  "targets": {
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "next dev",
+        "cwd": "{workspaceRoot}"
+      },
+      "dependsOn": [
+        {
+          "projects": ["multiband-prisma"],
+          "target": "generate"
+        }
+      ],
+      "cache": false,
+      "continuous": true
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "next build",
+        "cwd": "{workspaceRoot}"
+      },
+      "dependsOn": [
+        {
+          "projects": ["multiband-prisma"],
+          "target": "generate"
+        }
+      ],
+      "cache": false,
+      "outputs": ["{workspaceRoot}/.next"]
+    },
+    "start": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "next start",
+        "cwd": "{workspaceRoot}"
+      },
+      "cache": false
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "next lint",
+        "cwd": "{workspaceRoot}"
+      },
+      "cache": true
+    }
+  }
+}

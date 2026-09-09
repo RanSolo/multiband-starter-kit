@@ -1,0 +1,17 @@
+{
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "name": "multiband-tests",
+  "root": "tests",
+  "sourceRoot": "tests",
+  "implicitDependencies": ["multiband-app"],
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node --test tests/*.test.mjs",
+        "cwd": "{workspaceRoot}"
+      },
+      "cache": true
+    }
+  }
+}

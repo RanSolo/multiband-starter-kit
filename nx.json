@@ -1,0 +1,57 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "namedInputs": {
+    "app": [
+      "{workspaceRoot}/app/**/*",
+      "{workspaceRoot}/components/**/*",
+      "{workspaceRoot}/lib/**/*",
+      "{workspaceRoot}/public/**/*",
+      "{workspaceRoot}/styles/**/*",
+      "{workspaceRoot}/middleware.ts",
+      "{workspaceRoot}/next.config.js",
+      "{workspaceRoot}/postcss.config.js",
+      "{workspaceRoot}/tailwind.config.js",
+      "{workspaceRoot}/.eslintrc.json",
+      "{workspaceRoot}/tsconfig.json",
+      "{workspaceRoot}/package.json",
+      "{workspaceRoot}/package-lock.json"
+    ],
+    "prisma": [
+      "{workspaceRoot}/prisma/**/*",
+      "{workspaceRoot}/package.json",
+      "{workspaceRoot}/package-lock.json"
+    ],
+    "tests": [
+      "{workspaceRoot}/tests/**/*",
+      "{workspaceRoot}/compose.qa.yml",
+      "{workspaceRoot}/.env.qa.example",
+      "{workspaceRoot}/scripts/qa/local-postgres.mjs",
+      "{workspaceRoot}/package.json",
+      "{workspaceRoot}/package-lock.json"
+    ]
+  },
+  "targetDefaults": {
+    "build": {
+      "cache": false,
+      "inputs": ["app", "^app"],
+      "outputs": ["{workspaceRoot}/.next"]
+    },
+    "dev": {
+      "cache": false
+    },
+    "start": {
+      "cache": false
+    },
+    "generate": {
+      "cache": false
+    },
+    "lint": {
+      "cache": true,
+      "inputs": ["app", "^app"]
+    },
+    "test": {
+      "cache": true,
+      "inputs": ["tests", "^app"]
+    }
+  }
+}
