@@ -16,6 +16,7 @@ export const config = {
 
 export default async function middleware(req: NextRequest) {
   const url = req.nextUrl;
+  const pathname = url.pathname;
 
   // Get hostname of request (e.g. demo.vercel.pub, demo.localhost:3000)
   let hostname = req.headers
@@ -32,23 +33,33 @@ export default async function middleware(req: NextRequest) {
     }`;
   }
 
-  const searchParams = req.nextUrl.searchParams.toString();
-  // Get the pathname of the request (e.g. /, /about, /blog/first-post)
-  const path = `${url.pathname}${
-    searchParams.length > 0 ? `?${searchParams}` : ""
-  }`;
-
   // rewrites for app pages
   if (hostname == `app.${process.env.NEXT_PUBLIC_ROOT_DOMAIN}`) {
-    const session = await getToken({ req });
-    if (!session && path !== "/login") {
-      return NextResponse.redirect(new URL("/login", req.url));
-    } else if (session && path == "/login") {
-      return NextResponse.redirect(new URL("/", req.url));
+    const isInternalAppPath =
+      pathname === "/app" || pathname.startsWith("/app/");
+    const isLoginPath = pathname === "/login" || pathname === "/app/login";
+    const session = await getToken({
+      req,
+      secret: process.env.AUTH_SECRET,
+    });
+
+    if (!session && !isLoginPath) {
+      const loginUrl = url.clone();
+      loginUrl.pathname = "/login";
+      return NextResponse.redirect(loginUrl);
+    } else if (session && isLoginPath) {
+      const appUrl = url.clone();
+      appUrl.pathname = "/";
+      return NextResponse.redirect(appUrl);
     }
-    return NextResponse.rewrite(
-      new URL(`/app${path === "/" ? "" : path}`, req.url),
-    );
+
+    if (isInternalAppPath) {
+      return NextResponse.next();
+    }
+
+    const appUrl = url.clone();
+    appUrl.pathname = `/app${pathname === "/" ? "" : pathname}`;
+    return NextResponse.rewrite(appUrl);
   }
 
   // special case for `vercel.pub` domain
@@ -63,11 +74,17 @@ export default async function middleware(req: NextRequest) {
     hostname === "localhost:3000" ||
     hostname === process.env.NEXT_PUBLIC_ROOT_DOMAIN
   ) {
-    return NextResponse.rewrite(
-      new URL(`/home${path === "/" ? "" : path}`, req.url),
-    );
+    if (pathname === "/home" || pathname.startsWith("/home/")) {
+      return NextResponse.next();
+    }
+
+    const homeUrl = url.clone();
+    homeUrl.pathname = `/home${pathname === "/" ? "" : pathname}`;
+    return NextResponse.rewrite(homeUrl);
   }
-  
+
   // rewrite everything else to `/[domain]/[slug] dynamic route
-  return NextResponse.rewrite(new URL(`/${hostname}${path}`, req.url));
+  const tenantUrl = url.clone();
+  tenantUrl.pathname = `/${hostname}${pathname}`;
+  return NextResponse.rewrite(tenantUrl);
 }
