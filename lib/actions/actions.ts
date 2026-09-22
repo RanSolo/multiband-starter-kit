@@ -263,59 +263,6 @@ export const createPost = withSiteAuth(async (_: FormData, site: Site) => {
   return response;
 });
 
-// creating a separate function for this because we're not using FormData
-export const updatePost = async (data: Post) => {
-  const session = await getSession();
-  if (!session?.user.id) {
-    return {
-      error: "Not authenticated",
-    };
-  }
-  const post = await prisma.post.findUnique({
-    where: {
-      id: data.id,
-    },
-    include: {
-      site: true,
-    },
-  });
-  if (!post || post.userId !== session.user.id) {
-    return {
-      error: "Post not found",
-    };
-  }
-  try {
-    const response = await prisma.post.update({
-      where: {
-        id: data.id,
-      },
-      data: {
-        title: data.title,
-        description: data.description,
-        content: data.content,
-      },
-    });
-
-    await revalidateTag(
-      `${post.site?.subdomain}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN}-posts`,
-    );
-    await revalidateTag(
-      `${post.site?.subdomain}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN}-${post.slug}`,
-    );
-
-    // if the site has a custom domain, we need to revalidate those tags too
-    post.site?.customDomain &&
-      (await revalidateTag(`${post.site?.customDomain}-posts`),
-      await revalidateTag(`${post.site?.customDomain}-${post.slug}`));
-
-    return response;
-  } catch (error: any) {
-    return {
-      error: error.message,
-    };
-  }
-};
-
 export const updatePostMetadata = withPostAuth(
   async (
     formData: FormData,

@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { useParams, useRouter } from "next/navigation";
 import LoadingDots from "@/components/icons/loading-dots";
 import va from "@vercel/analytics";
+import { toast } from "sonner";
 
 export default function CreatePostButton() {
   const router = useRouter();
@@ -16,10 +17,18 @@ export default function CreatePostButton() {
     <button
       onClick={() =>
         startTransition(async () => {
-          const post = await createPost(null, id, null);
-          va.track("Created Post");
-          router.refresh();
-          router.push(`/post/${post.id}`);
+          try {
+            const post = await createPost(null, id, null);
+            if ("error" in post) {
+              toast.error(post.error);
+              return;
+            }
+            va.track("Created Post");
+            router.refresh();
+            router.push(`/app/post/${post.id}`);
+          } catch {
+            toast.error("Failed to create post. Please try again.");
+          }
         })
       }
       className={cn(
