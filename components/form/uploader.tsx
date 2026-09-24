@@ -12,6 +12,7 @@ export default function Uploader({
   name: "image" | "logo";
 }) {
   const aspectRatio = name === "image" ? "aspect-video" : "aspect-square";
+  const label = name === "image" ? "Cover image" : "Logo";
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [data, setData] = useState({
@@ -21,24 +22,30 @@ export default function Uploader({
   const [dragActive, setDragActive] = useState(false);
 
   const handleUpload = (file: File | null) => {
-    if (file) {
-      if (file.size / 1024 / 1024 > 50) {
-        toast.error("File size too big (max 50MB)");
-      } else if (
-        !file.type.includes("gif") &&
-        !file.type.includes("png") &&
-        !file.type.includes("jpg") &&
-        !file.type.includes("jpeg")
-      ) {
-        toast.error("Invalid file type (must be .png, .jpg, or .jpeg)");
-      } else {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          setData((prev) => ({ ...prev, [name]: e.target?.result as string }));
-        };
-        reader.readAsDataURL(file);
-      }
+    const clearInput = () => {
+      if (inputRef.current) inputRef.current.value = "";
+    };
+    if (!file || file.size === 0) {
+      clearInput();
+      toast.error("Please select a non-empty image file.");
+      return;
     }
+    if (file.type !== "image/png" && file.type !== "image/jpeg") {
+      clearInput();
+      toast.error("Invalid file type (must be PNG, JPG, or JPEG).");
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      clearInput();
+      toast.error("File size too big (maximum 50 MiB).");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setData((prev) => ({ ...prev, [name]: e.target?.result as string }));
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -112,15 +119,15 @@ export default function Uploader({
             Drag and drop or click to upload.
           </p>
           <p className="mt-2 text-center text-sm text-gray-500">
-            Max file size: 50MB
+            Max file size: 50 MiB
           </p>
-          <span className="sr-only">Photo upload</span>
+          <span className="sr-only">{label} upload</span>
         </div>
         {data[name] && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={data[name] as string}
-            alt="Preview"
+            alt={`${label} preview`}
             className="h-full w-full rounded-md object-cover"
           />
         )}
@@ -131,7 +138,8 @@ export default function Uploader({
           ref={inputRef}
           name={name}
           type="file"
-          accept="image/*"
+          accept="image/png,image/jpeg"
+          required
           className="sr-only"
           onChange={(e) => {
             const file = e.currentTarget.files && e.currentTarget.files[0];
