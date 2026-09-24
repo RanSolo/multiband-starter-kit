@@ -2,6 +2,8 @@ import prisma from "@/lib/prisma";
 import Form from "@/components/form";
 import { updateSite } from "@/lib/actions/actions";
 import DeleteSiteForm from "@/components/form/delete-site-form";
+import SocialLinks from "@/components/form/social-links";
+import { canonicalSocialUrl } from "@/lib/social-links.mjs";
 
 export default async function SiteSettingsIndex({
   params,
@@ -12,9 +14,15 @@ export default async function SiteSettingsIndex({
     where: {
       id: decodeURIComponent(params.id),
     },
+    include: {
+      socialMediaLinks: {
+        select: { id: true, link: true },
+        orderBy: { id: "asc" },
+      },
+    },
   });
-  console.log('data', data);
-  
+  console.log("data", data);
+
   return (
     <div className="flex flex-col space-y-6">
       <Form
@@ -56,7 +64,7 @@ export default async function SiteSettingsIndex({
         }}
         handleSubmit={updateSite}
       />
-      
+
       <Form
         title="Bio"
         description="Bio of the band."
@@ -68,6 +76,14 @@ export default async function SiteSettingsIndex({
           placeholder: "Tell fans what makes this band worth hearing.",
         }}
         handleSubmit={updateSite}
+      />
+
+      <SocialLinks
+        siteId={data?.id!}
+        initialLinks={(data?.socialMediaLinks ?? []).flatMap((item) => {
+          const link = canonicalSocialUrl(item.link);
+          return link ? [{ id: item.id, link }] : [];
+        })}
       />
 
       <DeleteSiteForm siteName={data?.name!} />

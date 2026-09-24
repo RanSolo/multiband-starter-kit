@@ -4,7 +4,32 @@ import { notFound } from "next/navigation";
 import { placeholderBlurhash, toDateString } from "@/lib/utils";
 import { getPostsForSite, getSiteData } from "@/lib/fetchers";
 import Image from "next/image";
-import Iframe from 'react-iframe'
+import Iframe from "react-iframe";
+
+const socialLabel = (href: string) => {
+  const hostname = new URL(href).hostname.toLowerCase();
+  const labels: Record<string, string> = {
+    "instagram.com": "Instagram",
+    "www.instagram.com": "Instagram",
+    "facebook.com": "Facebook",
+    "www.facebook.com": "Facebook",
+    "youtube.com": "YouTube",
+    "www.youtube.com": "YouTube",
+    "youtu.be": "YouTube",
+    "x.com": "X",
+    "www.x.com": "X",
+    "twitter.com": "X",
+    "www.twitter.com": "X",
+    "tiktok.com": "TikTok",
+    "www.tiktok.com": "TikTok",
+    "spotify.com": "Spotify",
+    "open.spotify.com": "Spotify",
+    "soundcloud.com": "SoundCloud",
+    "www.soundcloud.com": "SoundCloud",
+    "bandcamp.com": "Bandcamp",
+  };
+  return labels[hostname] ?? hostname;
+};
 
 export async function generateStaticParams() {
   const allSites = await prisma.site.findMany({
@@ -49,52 +74,69 @@ export default async function SiteHomePage({
 
   return (
     <>
-      <div className="w-full mt-20 mb-20">
-        <div className="relative w-full pb-5 h-fit">
-          <div className="relative w-full h-full mx-auto overflow-hidden group">
+      <div className="mb-20 mt-20 w-full">
+        <div className="relative h-fit w-full pb-5">
+          <div className="group relative mx-auto h-full w-full overflow-hidden">
             <Image
-              alt='band photo'
+              alt="band photo"
               blurDataURL={placeholderBlurhash}
-              className="object-cover w-full h-full group-hover:scale-105 group-hover:duration-300"
+              className="h-full w-full object-cover group-hover:scale-105 group-hover:duration-300"
               width={1300}
               height={630}
               placeholder="blur"
-              src={data.image ?? "/placeholder.png"} 
+              src={data.image ?? "/placeholder.png"}
             />
           </div>
         </div>
 
         {data.bio?.trim() && (
-          <section className="w-5/6 max-w-screen-xl mx-auto mb-12 text-center">
-            <p className="text-lg md:text-xl leading-relaxed text-stone-700 dark:text-stone-300">
+          <section className="mx-auto mb-12 w-5/6 max-w-screen-xl text-center">
+            <p className="text-lg leading-relaxed text-stone-700 md:text-xl dark:text-stone-300">
               {data.bio}
             </p>
           </section>
         )}
 
-        <div className="w-1/2 max-w-screen-xl mx-auto md:mb-28 lg:w-5/6">
-          {posts.map(post => (
+        {data.socialMediaLinks.length > 0 && (
+          <nav
+            aria-label="Social links"
+            className="mx-auto mb-12 flex w-5/6 max-w-screen-xl flex-wrap justify-center gap-4"
+          >
+            {data.socialMediaLinks.map(({ id, link }) => (
+              <a
+                key={id}
+                href={link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-stone-700 underline dark:text-stone-300"
+              >
+                {socialLabel(link)}
+              </a>
+            ))}
+          </nav>
+        )}
 
-            <Link  key={post.slug} href={`/${post.slug}`}>
-              <div className="w-5/6 mx-auto mt-10 lg:w-full">
-                <h2 className="my-10 text-4xl font-title dark:text-white md:text-6xl">
+        <div className="mx-auto w-1/2 max-w-screen-xl md:mb-28 lg:w-5/6">
+          {posts.map((post) => (
+            <Link key={post.slug} href={`/${post.slug}`}>
+              <div className="mx-auto mt-10 w-5/6 lg:w-full">
+                <h2 className="my-10 font-title text-4xl md:text-6xl dark:text-white">
                   {post.title}
                 </h2>
               </div>
             </Link>
-          )
-
-          )}
-          </div>
-          
+          ))}
+        </div>
       </div>
-      <Iframe url={data.featuredEmbed as string}
+      <Iframe
+        url={data.featuredEmbed as string}
         width="100%"
         height="1000"
         id=""
         className=""
         display="block"
-        position="relative"/>
+        position="relative"
+      />
     </>
   );
 }

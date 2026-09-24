@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 import prisma from "@/lib/prisma";
+import { canonicalSocialUrl } from "@/lib/social-links.mjs";
 
 export async function getSiteData(domain: string) {
   const subdomain = domain.endsWith(`.${process.env.NEXT_PUBLIC_ROOT_DOMAIN}`)
@@ -8,10 +9,25 @@ export async function getSiteData(domain: string) {
 
   return await unstable_cache(
     async () => {
-      return prisma.site.findUnique({
+      const site = await prisma.site.findUnique({
         where: subdomain ? { subdomain } : { customDomain: domain },
-        include: { user: true },
+        include: {
+          user: true,
+          socialMediaLinks: {
+            where: { link: { not: null } },
+            orderBy: { id: "asc" },
+            select: { id: true, link: true },
+          },
+        },
       });
+      if (!site) return null;
+      return {
+        ...site,
+        socialMediaLinks: site.socialMediaLinks.flatMap((item) => {
+          const link = canonicalSocialUrl(item.link);
+          return link ? [{ id: item.id, link }] : [];
+        }),
+      };
     },
     [`${domain}-metadata`],
     {
