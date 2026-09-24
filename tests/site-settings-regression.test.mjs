@@ -38,7 +38,7 @@ describe("site settings navigation", () => {
 });
 
 describe("optional featured embed", () => {
-  it("renders an empty optional ordinary input", () => {
+  it("renders an empty optional multiline input", () => {
     const featured = appearance.match(
       /name: "featuredEmbed"[\s\S]*?handleSubmit/,
     );
@@ -47,6 +47,7 @@ describe("optional featured embed", () => {
     assert.match(featured[0], /required: false/);
     assert.match(form, /required\?: boolean/);
     assert.match(form, /required=\{inputAttrs\.required \?\? true\}/);
+    assert.match(featured[0], /type: "textarea"/);
   });
 
   it("does not change required textarea, subdomain, domain, or file branches", () => {
@@ -56,7 +57,7 @@ describe("optional featured embed", () => {
     );
     assert.match(
       form,
-      /inputAttrs\.name === "description" \|\| inputAttrs\.name === "bio"[\s\S]*?<textarea[\s\S]*?required/,
+      /inputAttrs\.type === "textarea" \|\| inputAttrs\.name === "description" \|\| inputAttrs\.name === "bio"[\s\S]*?<textarea[\s\S]*?required/,
     );
     assert.match(form, /inputAttrs\.name === "customDomain"/);
     assert.match(
@@ -65,16 +66,11 @@ describe("optional featured embed", () => {
     );
   });
 
-  it("normalizes only an empty featuredEmbed value to null", () => {
+  it("normalizes only the featured embed through the parser", () => {
     assert.match(
       actions,
-      /\[key\]: key === "featuredEmbed" && value === "" \? null : value/,
+      /\[key\]: key === "featuredEmbed" \? featuredEmbed : value/,
     );
-    const normalize = (key, value) =>
-      key === "featuredEmbed" && value === "" ? null : value;
-    assert.equal(normalize("featuredEmbed", ""), null);
-    assert.equal(normalize("featuredEmbed", "embed-code"), "embed-code");
-    assert.equal(normalize("description", ""), "");
-    assert.equal(normalize("bio", ""), "");
+    assert.match(actions, /featuredEmbed = normalizeYouTubeFeaturedEmbed\(value\)/);
   });
 });

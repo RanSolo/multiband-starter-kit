@@ -20,6 +20,7 @@ import {
   deleteSocialLink as deleteSocialLinkInStore,
   updateSocialLink as updateSocialLinkInStore,
 } from "@/lib/social-link-store.mjs";
+import { normalizeYouTubeFeaturedEmbed } from "@/lib/youtube-featured-embed.mjs";
 
 const nanoid = customAlphabet(
   "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
@@ -95,7 +96,12 @@ export const createSite = async (formData: FormData) => {
   const name = formData.get("name") as string;
   const description = formData.get("description") as string;
   const subdomain = formData.get("subdomain") as string;
-  const youTubeFeaturedEmbed = formData.get("featuredEmbed") as string;
+  let youTubeFeaturedEmbed;
+  try {
+    youTubeFeaturedEmbed = normalizeYouTubeFeaturedEmbed(formData.get("featuredEmbed"));
+  } catch {
+    return { error: "Enter a valid YouTube embed URL or iframe code." };
+  }
 
   try {
     console.log("session.user", session.user);
@@ -105,6 +111,7 @@ export const createSite = async (formData: FormData) => {
         name,
         description,
         subdomain,
+        featuredEmbed: youTubeFeaturedEmbed,
         socialMediaLinks: {
           create: {
             featuredEmbed: youTubeFeaturedEmbed,
@@ -137,6 +144,14 @@ export const createSite = async (formData: FormData) => {
 export const updateSite = withSiteAuth(
   async (formData: FormData, site: Site, key: string) => {
     const value = formData.get(key) as string;
+    let featuredEmbed: string | null = null;
+    if (key === "featuredEmbed") {
+      try {
+        featuredEmbed = normalizeYouTubeFeaturedEmbed(value);
+      } catch {
+        return { error: "Enter a valid YouTube embed URL or iframe code." };
+      }
+    }
 
     try {
       let response;
@@ -251,7 +266,7 @@ export const updateSite = withSiteAuth(
             id: site.id,
           },
           data: {
-            [key]: key === "featuredEmbed" && value === "" ? null : value,
+            [key]: key === "featuredEmbed" ? featuredEmbed : value,
           },
         });
       }

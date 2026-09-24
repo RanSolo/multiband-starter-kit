@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { placeholderBlurhash, toDateString } from "@/lib/utils";
 import { getPostsForSite, getSiteData } from "@/lib/fetchers";
 import Image from "next/image";
-import Iframe from "react-iframe";
+import { safeYouTubeFeaturedEmbed } from "@/lib/youtube-featured-embed.mjs";
 
 const socialLabel = (href: string) => {
   const hostname = new URL(href).hostname.toLowerCase();
@@ -71,6 +71,7 @@ export default async function SiteHomePage({
   if (!data) {
     notFound();
   }
+  const featuredEmbedSrc = safeYouTubeFeaturedEmbed(data.featuredEmbed);
 
   return (
     <>
@@ -128,15 +129,18 @@ export default async function SiteHomePage({
           ))}
         </div>
       </div>
-      <Iframe
-        url={data.featuredEmbed as string}
-        width="100%"
-        height="1000"
-        id=""
-        className=""
-        display="block"
-        position="relative"
-      />
+      {featuredEmbedSrc && (
+        <div className="mx-auto mb-20 aspect-video w-5/6 max-w-screen-xl">
+          <iframe
+            src={featuredEmbedSrc}
+            title="Featured YouTube video"
+            className="h-full w-full border-0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            referrerPolicy="strict-origin-when-cross-origin"
+            allowFullScreen
+          />
+        </div>
+      )}
     </>
   );
 }
