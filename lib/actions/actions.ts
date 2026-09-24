@@ -15,11 +15,97 @@ import {
 import { put } from "@vercel/blob";
 import { customAlphabet } from "nanoid";
 import { getBlurDataURL } from "@/lib/utils";
+import { canonicalSocialUrl } from "@/lib/social-links.mjs";
 
 const nanoid = customAlphabet(
   "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
   7,
 ); // 7-character random string
+
+const revalidateSiteMetadata = async (site: Site) => {
+  await revalidateTag(
+    `${site.subdomain}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN}-metadata`,
+  );
+  if (site.customDomain) await revalidateTag(`${site.customDomain}-metadata`);
+};
+
+export const createSocialLink = withSiteAuth(
+  async (formData: FormData, site: Site) => {
+    const link = canonicalSocialUrl(formData.get("link"));
+    if (!link) return { error: "Enter a valid HTTP or HTTPS URL." };
+    try {
+      const existing = await prisma.socialMediaLink.findMany({
+        where: { siteId: site.id },
+        select: { link: true },
+      });
+      if (existing.some((item) => canonicalSocialUrl(item.link) === link))
+        return { error: "This social link already exists." };
+      const created = await prisma.socialMediaLink.create({
+        data: { siteId: site.id, link },
+        select: { id: true },
+      });
+      await revalidateSiteMetadata(site);
+      return { link: { id: created.id, link } };
+    } catch {
+      return { error: "Unable to add social link." };
+    }
+  },
+);
+
+export const updateSocialLink = withSiteAuth(
+  async (formData: FormData, site: Site) => {
+    const id = formData.get("id");
+    const link = canonicalSocialUrl(formData.get("link"));
+    if (typeof id !== "string" || !id || !link)
+      return { error: "Enter a valid social link." };
+    try {
+      const current = await prisma.socialMediaLink.findFirst({
+        where: { id, siteId: site.id },
+        select: { id: true, link: true },
+      });
+      if (!current || !current.link?.trim())
+        return { error: "Social link not found." };
+      const existing = await prisma.socialMediaLink.findMany({
+        where: { siteId: site.id, id: { not: id } },
+        select: { link: true },
+      });
+      if (existing.some((item) => canonicalSocialUrl(item.link) === link))
+        return { error: "This social link already exists." };
+      const updated = await prisma.socialMediaLink.update({
+        where: { id },
+        data: { link },
+        select: { id: true },
+      });
+      await revalidateSiteMetadata(site);
+      return { link: { id: updated.id, link } };
+    } catch {
+      return { error: "Unable to update social link." };
+    }
+  },
+);
+
+export const deleteSocialLink = withSiteAuth(
+  async (formData: FormData, site: Site) => {
+    const id = formData.get("id");
+    if (typeof id !== "string" || !id)
+      return { error: "Social link not found." };
+    try {
+      const current = await prisma.socialMediaLink.findFirst({
+        where: { id, siteId: site.id },
+        select: { id: true, link: true },
+      });
+      if (!current || !current.link?.trim())
+        return { error: "Social link not found." };
+      await prisma.socialMediaLink.deleteMany({
+        where: { id, siteId: site.id },
+      });
+      await revalidateSiteMetadata(site);
+      return { id };
+    } catch {
+      return { error: "Unable to remove social link." };
+    }
+  },
+);
 
 export const createSite = async (formData: FormData) => {
   const session = await getSession();
@@ -34,13 +120,13 @@ export const createSite = async (formData: FormData) => {
   const youTubeFeaturedEmbed = formData.get("featuredEmbed") as string;
 
   try {
-    console.log('session.user', session.user);
-    
+    console.log("session.user", session.user);
+
     const response = await prisma.site.create({
       data: {
         name,
         description,
-        subdomain, 
+        subdomain,
         socialMediaLinks: {
           create: {
             featuredEmbed: youTubeFeaturedEmbed,
@@ -51,7 +137,6 @@ export const createSite = async (formData: FormData) => {
             id: session.user.id,
           },
         },
-        
       },
     });
     await revalidateTag(
@@ -116,7 +201,7 @@ export const updateSite = withSiteAuth(
         if (site.customDomain && site.customDomain !== value) {
           response = await removeDomainFromVercelProject(site.customDomain);
 
-          // Optional: remove domain from Vercel team 
+          // Optional: remove domain from Vercel team
 
           // first, we need to check if the apex domain is being used by other sites
           const apexDomain = getApexDomain(`https://${site.customDomain}`);
@@ -142,9 +227,7 @@ export const updateSite = withSiteAuth(
           } else {
             // this is the only site using this apex domain
             // so we can remove it entirely from our Vercel team
-            await removeDomainFromVercelTeam(
-              site.customDomain
-            );
+            await removeDomainFromVercelTeam(site.customDomain);
           }
         }
       } else if (key === "image" || key === "logo") {
