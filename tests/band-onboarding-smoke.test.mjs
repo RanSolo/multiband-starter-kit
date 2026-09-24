@@ -105,7 +105,12 @@ describe("Band onboarding smoke path", () => {
     assertIncludes(
       actionsSource,
       "featuredEmbed: youTubeFeaturedEmbed",
-      "createSite should persist the featured embed"
+      "createSite should persist the featured embed on Site and preserve the nested social record"
+    );
+    assertIncludes(
+      actionsSource,
+      'normalizeYouTubeFeaturedEmbed(formData.get("featuredEmbed"))',
+      "createSite should validate and normalize the featured embed"
     );
     assertIncludes(
       actionsSource,

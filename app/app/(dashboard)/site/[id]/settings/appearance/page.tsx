@@ -39,12 +39,12 @@ export default async function SiteSettingsAppearance({
         handleSubmit={updateSite}
       />
       <Form
-        title="featuredEmbed"
-        description="The featured Youtube embed code for your site."
-        helpText="Click share on youtube, then click embed and copy code."
+        title="Featured YouTube video"
+        description="Paste a YouTube embed URL or the full iframe code from Share → Embed."
+        helpText="Leave blank to remove the featured video."
         inputAttrs={{
           name: "featuredEmbed",
-          type: "text",
+          type: "textarea",
           defaultValue: data?.featuredEmbed ?? "",
           required: false,
         }}

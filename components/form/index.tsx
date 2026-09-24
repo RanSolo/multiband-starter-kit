@@ -108,11 +108,14 @@ export default function Form({
               </div>
             )}
           </div>
-        ) : inputAttrs.name === "description" || inputAttrs.name === "bio" ? (
+        ) : inputAttrs.type === "textarea" || inputAttrs.name === "description" || inputAttrs.name === "bio" ? (
           <textarea
-            {...inputAttrs}
+            name={inputAttrs.name}
+            defaultValue={inputAttrs.defaultValue}
+            placeholder={inputAttrs.placeholder}
+            maxLength={inputAttrs.maxLength}
             rows={3}
-            required
+            required={inputAttrs.required ?? true}
             className="w-full max-w-xl rounded-md border border-stone-300 text-sm text-stone-900 placeholder-stone-300 focus:border-stone-500 focus:outline-none focus:ring-stone-500 dark:border-stone-600 dark:bg-black dark:text-white dark:placeholder-stone-700"
           />
         ) : (
