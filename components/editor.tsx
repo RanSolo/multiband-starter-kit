@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { Post } from "@prisma/client";
 import { updatePostMetadata } from "@/lib/actions/actions";
 import { createPostAutosave } from "@/lib/post-autosave.mjs";
@@ -11,9 +18,19 @@ import LoadingDots from "./icons/loading-dots";
 import { ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import type { Editor as TiptapEditor } from "@tiptap/core";
+import {
+  canMoveImage,
+  createEditorImageExtension,
+  moveImage,
+  resetImageSize,
+  type SelectedImage,
+} from "./editor-image-extension";
 
 type PostWithSite = Post & { site: { subdomain: string | null } | null };
 type EditablePost = Pick<PostWithSite, "title" | "description" | "content">;
+
+const imageButtonClass =
+  "rounded border border-stone-300 bg-white px-3 py-1 text-sm text-stone-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-40 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 dark:focus-visible:outline-blue-400";
 
 const editableFields = (post: PostWithSite): EditablePost => ({
   title: post.title,
@@ -29,6 +46,20 @@ export default function Editor({ post }: { post: PostWithSite }) {
     "saved",
   );
   const latestDataRef = useRef<PostWithSite>(data);
+  const imageEditorRef = useRef<TiptapEditor | null>(null);
+  const selectedImageRef = useRef<SelectedImage | null>(null);
+  const [imageSelection, setImageSelection] = useState<SelectedImage | null>(
+    null,
+  );
+  const imageExtension = useMemo(
+    () =>
+      createEditorImageExtension((editor, selected) => {
+        imageEditorRef.current = selected ? editor : null;
+        selectedImageRef.current = selected;
+        setImageSelection(selected);
+      }),
+    [],
+  );
   const autosaveRef = useRef<ReturnType<typeof createPostAutosave> | null>(
     null,
   );
@@ -98,6 +129,19 @@ export default function Editor({ post }: { post: PostWithSite }) {
   const handleDebouncedUpdate = useCallback(() => {
     startTransitionSaving(savePost);
   }, [savePost]);
+
+  const actOnSelectedImage = (action: "up" | "down" | "reset") => {
+    const editor = imageEditorRef.current;
+    const selected = selectedImageRef.current;
+    if (
+      !editor ||
+      !selected ||
+      editor.state.doc.nodeAt(selected.position) !== selected.node
+    )
+      return;
+    if (action === "reset") resetImageSize(editor, selected.position);
+    else moveImage(editor, selected.position, action === "up" ? -1 : 1);
+  };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -209,8 +253,53 @@ export default function Editor({ post }: { post: PostWithSite }) {
           className="dark:placeholder-text-600 w-full resize-none border-none px-0 placeholder:text-stone-400 focus:outline-none focus:ring-0 dark:bg-black dark:text-white"
         />
       </div>
+      <div
+        className="mb-3 flex flex-wrap gap-2"
+        role="toolbar"
+        aria-label="Selected image controls"
+      >
+        <button
+          type="button"
+          aria-label="Move image up"
+          disabled={
+            !imageSelection ||
+            !imageEditorRef.current ||
+            !canMoveImage(imageEditorRef.current, imageSelection.position, -1)
+          }
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => actOnSelectedImage("up")}
+          className={imageButtonClass}
+        >
+          Move up
+        </button>
+        <button
+          type="button"
+          aria-label="Move image down"
+          disabled={
+            !imageSelection ||
+            !imageEditorRef.current ||
+            !canMoveImage(imageEditorRef.current, imageSelection.position, 1)
+          }
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => actOnSelectedImage("down")}
+          className={imageButtonClass}
+        >
+          Move down
+        </button>
+        <button
+          type="button"
+          aria-label="Reset image size"
+          disabled={!imageSelection || imageSelection.node.attrs.width == null}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => actOnSelectedImage("reset")}
+          className={imageButtonClass}
+        >
+          Reset size
+        </button>
+      </div>
       <NovelEditor
         className="relative block"
+        extensions={[imageExtension]}
         defaultValue={post.content || undefined}
         onUpdate={handleEditorUpdate}
         onDebouncedUpdate={handleDebouncedUpdate}
