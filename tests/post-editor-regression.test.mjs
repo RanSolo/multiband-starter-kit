@@ -60,72 +60,63 @@ describe("post autosave state", () => {
     );
   });
 
-  it("coalesces repeated callbacks while one unchanged edit is pending", async () => {
-    const pending = deferred();
-    let requests = 0;
+  it("returns one promise and drains A, B, and C in exact order", async () => {
+    const pending = { A: deferred(), B: deferred(), C: deferred() };
+    const writes = [];
+    const statuses = [];
     const autosave = createPostAutosave({
       initial,
-      persist: () => {
-        requests++;
-        return pending.promise;
+      persist: (snapshot) => {
+        writes.push(snapshot.title);
+        return pending[snapshot.title].promise;
       },
-      onStatus: () => {},
+      onStatus: (status) => statuses.push(status),
     });
-    autosave.setLatest({ ...initial, title: "Edited" });
-    const saving = autosave.requestSave();
-    autosave.requestSave();
-    autosave.requestSave();
-    assert.equal(requests, 1);
-    pending.resolve();
-    await saving;
-    assert.equal(requests, 1);
-  });
-
-  it("saves only the newest in-flight edit once, then quiesces", async () => {
-    const first = deferred();
-    const saved = [];
-    const autosave = createPostAutosave({
-      initial,
-      persist: async (snapshot) => {
-        saved.push(snapshot);
-        if (saved.length === 1) await first.promise;
-      },
-      onStatus: () => {},
-    });
-    autosave.setLatest({ ...initial, title: "First" });
-    const saving = autosave.requestSave();
-    autosave.setLatest({ ...initial, title: "Second" });
-    autosave.requestSave();
-    autosave.setLatest({ ...initial, title: "Newest" });
-    autosave.requestSave();
-    first.resolve();
-    await saving;
+    autosave.setLatest({ ...initial, title: "A" });
+    const firstCaller = autosave.requestSave();
+    autosave.setLatest({ ...initial, title: "B" });
+    const secondCaller = autosave.requestSave();
+    assert.equal(firstCaller, secondCaller);
+    pending.A.resolve();
+    await Promise.resolve();
+    assert.deepEqual(writes, ["A", "B"]);
+    autosave.setLatest({ ...initial, title: "C" });
+    const thirdCaller = autosave.requestSave();
+    assert.equal(firstCaller, thirdCaller);
+    pending.B.resolve();
+    await Promise.resolve();
+    assert.deepEqual(writes, ["A", "B", "C"]);
+    assert.equal(statuses.includes("saved"), false);
+    pending.C.resolve();
+    await firstCaller;
+    assert.equal(statuses.at(-1), "saved");
     await autosave.requestSave();
-    assert.deepEqual(
-      saved.map(({ title }) => title),
-      ["First", "Newest"],
-    );
+    assert.deepEqual(writes, ["A", "B", "C"]);
   });
 
-  it("does not retry a failure until an explicit future request", async () => {
+  it("keeps a successful baseline and retries a later failure only explicitly", async () => {
     let requests = 0;
     const statuses = [];
     const autosave = createPostAutosave({
       initial,
       persist: async () => {
         requests++;
-        if (requests === 1) throw new Error("nope");
+        if (requests === 2) throw new Error("nope");
       },
       onStatus: (status) => statuses.push(status),
     });
-    autosave.setLatest({ ...initial, description: "Edited" });
+    autosave.setLatest({ ...initial, description: "Saved first" });
     await autosave.requestSave();
     assert.equal(requests, 1);
-    assert.equal(statuses.at(-1), "error");
-    await Promise.resolve();
-    assert.equal(requests, 1);
+    assert.equal(statuses.at(-1), "saved");
+    autosave.setLatest({ ...initial, description: "Fails next" });
     await autosave.requestSave();
     assert.equal(requests, 2);
+    assert.equal(statuses.at(-1), "error");
+    await Promise.resolve();
+    assert.equal(requests, 2);
+    await autosave.requestSave();
+    assert.equal(requests, 3);
     assert.equal(statuses.at(-1), "saved");
   });
 
