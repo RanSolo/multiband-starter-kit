@@ -1,47 +1,118 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { Post } from "@prisma/client";
-import { updatePost, updatePostMetadata } from "@/lib/actions/actions";
+import { updatePostMetadata } from "@/lib/actions/actions";
+import { createPostAutosave } from "@/lib/post-autosave.mjs";
 import { Editor as NovelEditor } from "novel";
 import TextareaAutosize from "react-textarea-autosize";
 import { cn } from "@/lib/utils";
 import LoadingDots from "./icons/loading-dots";
 import { ExternalLink } from "lucide-react";
 import { toast } from "sonner";
-import { Editor as SlateEditor } from "novel";
+import type { Editor as TiptapEditor } from "@tiptap/core";
 
 type PostWithSite = Post & { site: { subdomain: string | null } | null };
+type EditablePost = Pick<PostWithSite, "title" | "description" | "content">;
+
+const editableFields = (post: PostWithSite): EditablePost => ({
+  title: post.title,
+  description: post.description,
+  content: post.content,
+});
 
 export default function Editor({ post }: { post: PostWithSite }) {
-  let [isPendingSaving, startTransitionSaving] = useTransition();
-  let [isPendingPublishing, startTransitionPublishing] = useTransition();
+  const [isPendingSaving, startTransitionSaving] = useTransition();
+  const [isPendingPublishing, startTransitionPublishing] = useTransition();
   const [data, setData] = useState<PostWithSite>(post);
-  const [hydrated, setHydrated] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "error">(
+    "saved",
+  );
+  const latestDataRef = useRef<PostWithSite>(data);
+  const autosaveRef = useRef<ReturnType<typeof createPostAutosave> | null>(
+    null,
+  );
+
+  if (!autosaveRef.current) {
+    autosaveRef.current = createPostAutosave({
+      initial: editableFields(post),
+      persist: async (snapshot: EditablePost) => {
+        const response = await fetch(`/api/posts/${post.id}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(snapshot),
+        });
+        let result: unknown;
+        try {
+          result = await response.json();
+        } catch {
+          throw new Error("Invalid response while saving post");
+        }
+        if (
+          !response.ok ||
+          !result ||
+          typeof result !== "object" ||
+          "error" in result
+        ) {
+          throw new Error(
+            result &&
+            typeof result === "object" &&
+            "error" in result &&
+            typeof result.error === "string"
+              ? result.error
+              : "Failed to save post",
+          );
+        }
+      },
+      onStatus: (status: "saved" | "saving" | "error", error?: unknown) => {
+        setSaveStatus(status);
+        if (status === "error") {
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "Failed to save post. Please try again.",
+          );
+        }
+      },
+    });
+  }
 
   const url = process.env.NEXT_PUBLIC_VERCEL_ENV
     ? `https://${data.site?.subdomain}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN}/${data.slug}`
     : `http://${data.site?.subdomain}.localhost:3000/${data.slug}`;
 
-  // listen to CMD + S and override the default behavior
+  const savePost = useCallback(() => autosaveRef.current?.requestSave(), []);
+
+  const handleEditorUpdate = useCallback((editor: TiptapEditor | undefined) => {
+    const content = editor?.storage.markdown.getMarkdown() ?? null;
+    const isUserEdit = autosaveRef.current?.captureContent(content);
+    if (!isUserEdit) return;
+    setData((previous) => {
+      const next = { ...previous, content };
+      latestDataRef.current = next;
+      autosaveRef.current?.setLatest(editableFields(next));
+      return next;
+    });
+  }, []);
+
+  const handleDebouncedUpdate = useCallback(() => {
+    startTransitionSaving(savePost);
+  }, [savePost]);
+
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.metaKey && e.key === "s") {
-        e.preventDefault();
-        startTransitionSaving(async () => {
-          await updatePost(data);
-        });
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.metaKey && event.key === "s") {
+        event.preventDefault();
+        startTransitionSaving(savePost);
       }
     };
     document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [data, startTransitionSaving]);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [savePost]);
 
   return (
-    <div className="relative min-h-[500px] w-full max-w-screen-lg border-stone-200 p-12 px-8 dark:border-stone-700 sm:mb-[calc(20vh)] sm:rounded-lg sm:border sm:px-12 sm:shadow-lg">
-      <div className="absolute flex items-center mb-5 space-x-3 right-5 top-5">
+    <div className="relative min-h-[500px] w-full max-w-screen-lg border-stone-200 p-12 px-8 sm:mb-[calc(20vh)] sm:rounded-lg sm:border sm:px-12 sm:shadow-lg dark:border-stone-700">
+      <div className="absolute right-5 top-5 mb-5 flex items-center space-x-3">
         {data.published && (
           <a
             href={url}
@@ -49,28 +120,48 @@ export default function Editor({ post }: { post: PostWithSite }) {
             rel="noopener noreferrer"
             className="flex items-center space-x-1 text-sm text-stone-400 hover:text-stone-500"
           >
-            <ExternalLink className="w-4 h-4" />
+            <ExternalLink className="h-4 w-4" />
           </a>
         )}
-        <div className="px-2 py-1 text-sm rounded-lg bg-stone-100 text-stone-400 dark:bg-stone-800 dark:text-stone-500">
-          {isPendingSaving ? "Saving..." : "Saved"}
+        <div className="rounded-lg bg-stone-100 px-2 py-1 text-sm text-stone-400 dark:bg-stone-800 dark:text-stone-500">
+          {data.published ? "Published" : "Draft"}
+        </div>
+        <div className="rounded-lg bg-stone-100 px-2 py-1 text-sm text-stone-400 dark:bg-stone-800 dark:text-stone-500">
+          {saveStatus === "saving" || isPendingSaving
+            ? "Saving..."
+            : saveStatus === "error"
+              ? "Save failed"
+              : "Saved"}
         </div>
         <button
           onClick={() => {
+            const nextPublished = !data.published;
             const formData = new FormData();
-            console.log(data.published, typeof data.published);
-            formData.append("published", String(!data.published));
+            formData.append("published", String(nextPublished));
             startTransitionPublishing(async () => {
-              await updatePostMetadata(formData, post.id, "published").then(
-                () => {
-                  toast.success(
-                    `Successfully ${
-                      data.published ? "unpublished" : "published"
-                    } your post.`,
-                  );
-                  setData((prev) => ({ ...prev, published: !prev.published }));
-                },
-              );
+              try {
+                const response = await updatePostMetadata(
+                  formData,
+                  post.id,
+                  "published",
+                );
+                if ("error" in response) {
+                  toast.error(response.error);
+                  return;
+                }
+                setData((previous) => {
+                  const next = { ...previous, published: nextPublished };
+                  latestDataRef.current = next;
+                  return next;
+                });
+                toast.success(
+                  `Successfully ${nextPublished ? "published" : "unpublished"} your post.`,
+                );
+              } catch {
+                toast.error(
+                  `Failed to ${nextPublished ? "publish" : "unpublish"} post. Please try again.`,
+                );
+              }
             });
           }}
           className={cn(
@@ -88,45 +179,42 @@ export default function Editor({ post }: { post: PostWithSite }) {
           )}
         </button>
       </div>
-      <div className="flex flex-col pb-5 mb-5 space-y-3 border-b border-stone-200 dark:border-stone-700">
+      <div className="mb-5 flex flex-col space-y-3 border-b border-stone-200 pb-5 dark:border-stone-700">
         <input
           type="text"
           placeholder="Title"
-          defaultValue={post?.title || ""}
+          defaultValue={post.title || ""}
           autoFocus
-          onChange={(e) => setData({ ...data, title: e.target.value })}
-          className="px-0 text-3xl border-none dark:placeholder-text-600 font-cal placeholder:text-stone-400 focus:outline-none focus:ring-0 dark:bg-black dark:text-white"
+          onChange={(event) =>
+            setData((previous) => {
+              const next = { ...previous, title: event.target.value };
+              latestDataRef.current = next;
+              autosaveRef.current?.setLatest(editableFields(next));
+              return next;
+            })
+          }
+          className="dark:placeholder-text-600 border-none px-0 font-cal text-3xl placeholder:text-stone-400 focus:outline-none focus:ring-0 dark:bg-black dark:text-white"
         />
         <TextareaAutosize
           placeholder="Description"
-          defaultValue={post?.description || ""}
-          onChange={(e) => setData({ ...data, description: e.target.value })}
-          className="w-full px-0 border-none resize-none dark:placeholder-text-600 placeholder:text-stone-400 focus:outline-none focus:ring-0 dark:bg-black dark:text-white"
+          defaultValue={post.description || ""}
+          onChange={(event) =>
+            setData((previous) => {
+              const next = { ...previous, description: event.target.value };
+              latestDataRef.current = next;
+              autosaveRef.current?.setLatest(editableFields(next));
+              return next;
+            })
+          }
+          className="dark:placeholder-text-600 w-full resize-none border-none px-0 placeholder:text-stone-400 focus:outline-none focus:ring-0 dark:bg-black dark:text-white"
         />
       </div>
       <NovelEditor
         className="relative block"
-        defaultValue={post?.content || undefined}
-        onUpdate={(editor) => {
-          setData((prev) => ({
-            ...prev,
-            content: editor?.storage.markdown.getMarkdown(),
-          }));
-        }}
-        onDebouncedUpdate={() => {
-          if (
-            data.title === post.title &&
-            data.description === post.description &&
-            data.content === post.content
-          ) {
-            return;
-          }
-          startTransitionSaving(async () => {
-            await updatePost(data);
-          });
-        }}
+        defaultValue={post.content || undefined}
+        onUpdate={handleEditorUpdate}
+        onDebouncedUpdate={handleDebouncedUpdate}
       />
-
     </div>
   );
 }

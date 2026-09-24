@@ -62,19 +62,56 @@ const externalLinks: []  = [
   // },
 ];
 
+const siteLookupInFlight = new Map<string, Promise<string | undefined>>();
+
+const getSiteIdForPost = (postId: string) => {
+  const existing = siteLookupInFlight.get(postId);
+  if (existing) return existing;
+
+  const request = getSiteFromPostId(postId).then(
+    (resolvedSiteId) => resolvedSiteId ?? undefined,
+  );
+  siteLookupInFlight.set(postId, request);
+  request.then(
+    () => {
+      if (siteLookupInFlight.get(postId) === request) {
+        siteLookupInFlight.delete(postId);
+      }
+    },
+    () => {
+      if (siteLookupInFlight.get(postId) === request) {
+        siteLookupInFlight.delete(postId);
+      }
+    },
+  );
+  return request;
+};
+
 export default function Nav({ children }: { children: ReactNode }) {
   const segments = useSelectedLayoutSegments();
+  const segment = segments[0];
   const { id } = useParams() as { id?: string };
 
-  const [siteId, setSiteId] = useState<string | null>();
+  const [siteId, setSiteId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (segments[0] === "post" && id) {
-      getSiteFromPostId(id).then((id) => {
-        setSiteId(id);
-      });
+    let cancelled = false;
+    if (segment === "post" && id) {
+      getSiteIdForPost(id).then(
+        (resolvedSiteId) => {
+          if (!cancelled) setSiteId(resolvedSiteId ?? null);
+        },
+        () => {
+          if (!cancelled) setSiteId(null);
+        },
+      );
+    } else {
+      setSiteId(null);
     }
-  }, [segments, id]);
+    return () => {
+      cancelled = true;
+    };
+  }, [segment, id]);
 
   const tabs = useMemo(() => {
     if (segments[0] === "site" && id) {
@@ -112,13 +149,13 @@ export default function Nav({ children }: { children: ReactNode }) {
         },
         {
           name: "Editor",
-          href: `/post/${id}`,
+          href: `/app/post/${id}`,
           isActive: segments.length === 2,
           icon: <Edit3 width={18} />,
         },
         {
           name: "Settings",
-          href: `/post/${id}/settings`,
+          href: `/app/post/${id}/settings`,
           isActive: segments.includes("settings"),
           icon: <Settings width={18} />,
         },
