@@ -148,6 +148,16 @@ export const updateSite = withSiteAuth(
           }
         }
       } else if (key === "image" || key === "logo") {
+        const entry: unknown = formData.get(key);
+        if (!(entry instanceof File) || entry.size === 0) {
+          return { error: "Please select a non-empty image file." };
+        }
+        if (entry.type !== "image/png" && entry.type !== "image/jpeg") {
+          return { error: "Invalid file type (must be PNG, JPG, or JPEG)." };
+        }
+        if (entry.size > 50 * 1024 * 1024) {
+          return { error: "File size too big (maximum 50 MiB)." };
+        }
         if (!process.env.BLOB_READ_WRITE_TOKEN) {
           return {
             error:
@@ -155,8 +165,9 @@ export const updateSite = withSiteAuth(
           };
         }
 
-        const file = formData.get(key) as File;
-        const filename = `${nanoid()}.${file.type.split("/")[1]}`;
+        const file = entry;
+        const extension = file.type === "image/png" ? "png" : "jpg";
+        const filename = `${nanoid()}.${extension}`;
 
         const { url } = await put(filename, file, {
           access: "public",
