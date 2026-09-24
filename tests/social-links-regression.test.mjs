@@ -6,13 +6,15 @@ import {
   canonicalSocialUrl as canonical,
 } from "../lib/social-links.mjs";
 
-const [settings, component, actions, fetchers, publicPage] = await Promise.all([
-  readFile("./app/app/(dashboard)/site/[id]/settings/page.tsx", "utf8"),
-  readFile("./components/form/social-links.tsx", "utf8"),
-  readFile("./lib/actions/actions.ts", "utf8"),
-  readFile("./lib/fetchers.ts", "utf8"),
-  readFile("./app/[domain]/page.tsx", "utf8"),
-]);
+const [settings, component, actions, fetchers, publicPage, store] =
+  await Promise.all([
+    readFile("./app/app/(dashboard)/site/[id]/settings/page.tsx", "utf8"),
+    readFile("./components/form/social-links.tsx", "utf8"),
+    readFile("./lib/actions/actions.ts", "utf8"),
+    readFile("./lib/fetchers.ts", "utf8"),
+    readFile("./app/[domain]/page.tsx", "utf8"),
+    readFile("./lib/social-link-store.mjs", "utf8"),
+  ]);
 
 describe("social URL contract", () => {
   it("exports the frozen maximum", () => {
@@ -72,13 +74,22 @@ describe("social link ownership and UI linkage", () => {
       "deleteSocialLink",
     ])
       assert.match(actions, new RegExp(`export const ${name} = withSiteAuth`));
+    assert.match(actions, /createSocialLinkInStore/);
+    assert.match(actions, /updateSocialLinkInStore/);
+    assert.match(actions, /deleteSocialLinkInStore/);
+    assert.match(store, /\$transaction\(async \(tx\)/);
     assert.match(
-      actions,
-      /findFirst\(\{[\s\S]*?where: \{ id, siteId: site\.id \}/,
+      store,
+      /\$queryRaw`SELECT pg_advisory_xact_lock\(hashtextextended\(\$\{siteId\}::text, 0::bigint\)\)::text AS lock`/,
     );
-    assert.match(actions, /id: \{ not: id \}/);
-    assert.match(actions, /!current\.link\?\.trim\(\)/);
+    assert.match(store, /findFirst\(\{[\s\S]*?where: \{ id, siteId \}/);
+    assert.match(store, /id: \{ not: excludedId \}/);
+    assert.match(store, /!current\.link\?\.trim\(\)/);
     assert.match(actions, /revalidateSiteMetadata\(site\)/);
+    assert.doesNotMatch(
+      store,
+      /revalidateTag|next\/cache|SET |pg_advisory_lock/,
+    );
   });
   it("filters and canonicalizes cached public data before safe anchor rendering", () => {
     assert.match(fetchers, /socialMediaLinks:[\s\S]*?orderBy: \{ id: "asc" \}/);
@@ -93,10 +104,10 @@ describe("social link ownership and UI linkage", () => {
   });
 
   it("uses the shared production canonicalizer in all three data consumers", () => {
-    assert.match(actions, /from "@\/lib\/social-links\.mjs"/);
+    assert.match(store, /from "\.\/social-links\.mjs"/);
     assert.match(fetchers, /from "@\/lib\/social-links\.mjs"/);
     assert.match(settings, /from "@\/lib\/social-links\.mjs"/);
-    assert.doesNotMatch(actions, /const canonicalSocialUrl/);
+    assert.doesNotMatch(store, /const canonicalSocialUrl/);
     assert.doesNotMatch(fetchers, /const safeSocialUrl/);
   });
 });

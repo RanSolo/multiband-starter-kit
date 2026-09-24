@@ -15,7 +15,11 @@ import {
 import { put } from "@vercel/blob";
 import { customAlphabet } from "nanoid";
 import { getBlurDataURL } from "@/lib/utils";
-import { canonicalSocialUrl } from "@/lib/social-links.mjs";
+import {
+  createSocialLink as createSocialLinkInStore,
+  deleteSocialLink as deleteSocialLinkInStore,
+  updateSocialLink as updateSocialLinkInStore,
+} from "@/lib/social-link-store.mjs";
 
 const nanoid = customAlphabet(
   "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
@@ -31,21 +35,15 @@ const revalidateSiteMetadata = async (site: Site) => {
 
 export const createSocialLink = withSiteAuth(
   async (formData: FormData, site: Site) => {
-    const link = canonicalSocialUrl(formData.get("link"));
-    if (!link) return { error: "Enter a valid HTTP or HTTPS URL." };
     try {
-      const existing = await prisma.socialMediaLink.findMany({
-        where: { siteId: site.id },
-        select: { link: true },
-      });
-      if (existing.some((item) => canonicalSocialUrl(item.link) === link))
-        return { error: "This social link already exists." };
-      const created = await prisma.socialMediaLink.create({
-        data: { siteId: site.id, link },
-        select: { id: true },
-      });
+      const result = await createSocialLinkInStore(
+        prisma,
+        site.id,
+        formData.get("link"),
+      );
+      if ("error" in result) return result;
       await revalidateSiteMetadata(site);
-      return { link: { id: created.id, link } };
+      return result;
     } catch {
       return { error: "Unable to add social link." };
     }
@@ -54,30 +52,16 @@ export const createSocialLink = withSiteAuth(
 
 export const updateSocialLink = withSiteAuth(
   async (formData: FormData, site: Site) => {
-    const id = formData.get("id");
-    const link = canonicalSocialUrl(formData.get("link"));
-    if (typeof id !== "string" || !id || !link)
-      return { error: "Enter a valid social link." };
     try {
-      const current = await prisma.socialMediaLink.findFirst({
-        where: { id, siteId: site.id },
-        select: { id: true, link: true },
-      });
-      if (!current || !current.link?.trim())
-        return { error: "Social link not found." };
-      const existing = await prisma.socialMediaLink.findMany({
-        where: { siteId: site.id, id: { not: id } },
-        select: { link: true },
-      });
-      if (existing.some((item) => canonicalSocialUrl(item.link) === link))
-        return { error: "This social link already exists." };
-      const updated = await prisma.socialMediaLink.update({
-        where: { id },
-        data: { link },
-        select: { id: true },
-      });
+      const result = await updateSocialLinkInStore(
+        prisma,
+        site.id,
+        formData.get("id"),
+        formData.get("link"),
+      );
+      if ("error" in result) return result;
       await revalidateSiteMetadata(site);
-      return { link: { id: updated.id, link } };
+      return result;
     } catch {
       return { error: "Unable to update social link." };
     }
@@ -86,21 +70,15 @@ export const updateSocialLink = withSiteAuth(
 
 export const deleteSocialLink = withSiteAuth(
   async (formData: FormData, site: Site) => {
-    const id = formData.get("id");
-    if (typeof id !== "string" || !id)
-      return { error: "Social link not found." };
     try {
-      const current = await prisma.socialMediaLink.findFirst({
-        where: { id, siteId: site.id },
-        select: { id: true, link: true },
-      });
-      if (!current || !current.link?.trim())
-        return { error: "Social link not found." };
-      await prisma.socialMediaLink.deleteMany({
-        where: { id, siteId: site.id },
-      });
+      const result = await deleteSocialLinkInStore(
+        prisma,
+        site.id,
+        formData.get("id"),
+      );
+      if ("error" in result) return result;
       await revalidateSiteMetadata(site);
-      return { id };
+      return result;
     } catch {
       return { error: "Unable to remove social link." };
     }
