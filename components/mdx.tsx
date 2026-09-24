@@ -9,10 +9,32 @@ import {
 import { Tweet } from "react-tweet";
 import BlurImage from "@/components/blur-image";
 import styles from "./mdx.module.css";
+import type { ImgHTMLAttributes } from "react";
+import { decodeImageTitle } from "@/lib/editor-image-size.mjs";
+
+export function PostImage(props: ImgHTMLAttributes<HTMLImageElement>) {
+  const decoded = decodeImageTitle(props.title);
+  return (
+    // The image URL remains subject to the same MDX handling as before.
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      {...props}
+      alt={props.alt ?? ""}
+      title={decoded.title ?? undefined}
+      width={decoded.width ?? props.width}
+      style={
+        decoded.width === null
+          ? props.style
+          : { ...props.style, maxWidth: "100%", height: "auto" }
+      }
+    />
+  );
+}
 
 export default async function MDX({ source }: { source: string }) {
   const components = {
     a: replaceLinks,
+    img: PostImage,
     BlurImage,
     Examples,
     Tweet,
