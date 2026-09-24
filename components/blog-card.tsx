@@ -12,29 +12,41 @@ interface BlogCardProps {
 }
 
 export default function BlogCard({ data }: BlogCardProps) {
+  const coverImage =
+    data.image && data.image !== "/placeholder.png" ? data.image : null;
   return (
-    <Link href={`/${data.slug}`}>
-      <div className="ease overflow-hidden rounded-2xl border-2 border-stone-100 bg-white shadow-md transition-all duration-200 hover:-translate-y-1 hover:shadow-xl dark:border-stone-800">
-        <BlurImage
-          src={data.image!}
-          alt={data.title ?? "Blog Post"}
-          width={500}
-          height={400}
-          className="h-64 w-full object-cover"
-          placeholder="blur"
-          blurDataURL={data.imageBlurhash ?? placeholderBlurhash}
-        />
-        <div className="h-36 border-t border-stone-200 px-5 py-8 dark:border-stone-700 dark:bg-black">
-          <h3 className="font-title text-xl tracking-wide dark:text-white">
-            {data.title}
-          </h3>
-          <p className="text-md my-2 truncate italic text-stone-600 dark:text-stone-400">
+    <Link
+      href={`/${data.slug}`}
+      className="group flex min-w-0 flex-col overflow-hidden rounded-lg border border-stone-900/10 bg-white/70 transition-colors hover:border-amber-800/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stone-800 dark:border-stone-100/10 dark:bg-stone-900/70 dark:hover:border-amber-300/60 dark:focus-visible:outline-stone-100"
+    >
+      {coverImage && (
+        <div className="aspect-[16/10] overflow-hidden bg-stone-200 dark:bg-stone-800">
+          <BlurImage
+            src={coverImage}
+            alt=""
+            width={800}
+            height={500}
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03] motion-reduce:transition-none"
+            placeholder="blur"
+            blurDataURL={data.imageBlurhash ?? placeholderBlurhash}
+          />
+        </div>
+      )}
+      <div className="flex flex-1 flex-col px-5 py-6 sm:px-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-800 dark:text-amber-300">
+          Published {toDateString(data.createdAt)}
+        </p>
+        <h3 className="mt-3 break-words font-title text-xl font-bold leading-snug tracking-tight text-stone-900 sm:text-2xl dark:text-stone-100">
+          {data.title}
+        </h3>
+        {data.description?.trim() && (
+          <p className="mt-3 line-clamp-3 break-words text-sm leading-relaxed text-stone-600 dark:text-stone-300">
             {data.description}
           </p>
-          <p className="my-2 text-sm text-stone-600 dark:text-stone-400">
-            Published {toDateString(data.createdAt)}
-          </p>
-        </div>
+        )}
+        <span className="mt-7 text-sm font-semibold text-stone-900 dark:text-stone-100">
+          Read story <span aria-hidden="true">→</span>
+        </span>
       </div>
     </Link>
   );
