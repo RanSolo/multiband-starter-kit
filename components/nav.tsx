@@ -123,19 +123,19 @@ export default function Nav({ children }: { children: ReactNode }) {
         },
         {
           name: "Posts",
-          href: `/site/${id}`,
+          href: `/app/site/${id}`,
           isActive: segments.length === 2,
           icon: <Newspaper width={18} />,
         },
         {
           name: "Analytics",
-          href: `/site/${id}/analytics`,
+          href: `/app/site/${id}/analytics`,
           isActive: segments.includes("analytics"),
           icon: <BarChart3 width={18} />,
         },
         {
           name: "Settings",
-          href: `/site/${id}/settings`,
+          href: `/app/site/${id}/settings`,
           isActive: segments.includes("settings"),
           icon: <Settings width={18} />,
         },
@@ -144,7 +144,7 @@ export default function Nav({ children }: { children: ReactNode }) {
       return [
         {
           name: "Back to All Posts",
-          href: siteId ? `/site/${siteId}` : "/sites",
+          href: siteId ? `/app/site/${siteId}` : "/sites",
           icon: <ArrowLeft width={18} />,
         },
         {

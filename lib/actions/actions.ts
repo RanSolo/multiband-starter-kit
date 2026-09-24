@@ -179,7 +179,7 @@ export const updateSite = withSiteAuth(
             id: site.id,
           },
           data: {
-            [key]: value,
+            [key]: key === "featuredEmbed" && value === "" ? null : value,
           },
         });
       }

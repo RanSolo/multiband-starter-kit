@@ -45,7 +45,8 @@ export default async function SiteSettingsAppearance({
         inputAttrs={{
           name: "featuredEmbed",
           type: "text",
-          defaultValue: data?.featuredEmbed!,
+          defaultValue: data?.featuredEmbed ?? "",
+          required: false,
         }}
         handleSubmit={updateSite}
       />

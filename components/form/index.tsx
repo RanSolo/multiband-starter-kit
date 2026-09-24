@@ -28,6 +28,7 @@ export default function Form({
     placeholder?: string;
     maxLength?: number;
     pattern?: string;
+    required?: boolean;
   };
   handleSubmit: any;
 }) {
@@ -117,7 +118,7 @@ export default function Form({
         ) : (
           <input
             {...inputAttrs}
-            required
+            required={inputAttrs.required ?? true}
             className="w-full max-w-md rounded-md border border-stone-300 text-sm text-stone-900 placeholder-stone-300 focus:border-stone-500 focus:outline-none focus:ring-stone-500 dark:border-stone-600 dark:bg-black dark:text-white dark:placeholder-stone-700"
           />
         )}
