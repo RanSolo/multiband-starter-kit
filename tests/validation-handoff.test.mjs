@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { readFileSync, mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -42,27 +42,49 @@ function commit(root, message) {
   return git(root, "rev-parse", "HEAD");
 }
 
-function fixture() {
+function fixture({ realNx = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), "mbsk-handoff-test-"));
   fixtures.push(root);
   git(root, "init", "-q");
-  write(root, ".gitignore", "node_modules/\n");
+  write(root, ".gitignore", "node_modules\n.nx/\n");
   write(root, "tools/quality/may-handoff.mjs", runner);
   write(root, "tools/quality/project.json", JSON.stringify(project));
-  write(root, "tests/project.json", '{"name":"multiband-tests"}\n');
+  write(root, "tests/project.json", realNx ? JSON.stringify({
+    name: "multiband-tests",
+    root: "tests",
+    targets: {
+      test: {
+        executor: "nx:run-commands",
+        options: { command: "node tests/fixed-test.cjs", cwd: "{workspaceRoot}" },
+        cache: false,
+      },
+    },
+  }) : '{"name":"multiband-tests"}\n');
+  if (realNx) write(root, "tests/fixed-test.cjs", 'require("node:fs").writeFileSync(process.env.FAKE_NX_LOG, "fixed-source-test\\n");\n');
   write(root, "nx.json", "{}\n");
-  write(root, "package.json", '{"name":"fixture"}\n');
-  write(root, "package-lock.json", "{}\n");
+  write(root, "package.json", '{"name":"fixture","version":"1.0.0","private":true,"nx":{"includedScripts":[]}}\n');
+  write(root, "package-lock.json", JSON.stringify({
+    name: "fixture",
+    version: "1.0.0",
+    lockfileVersion: 3,
+    requires: true,
+    packages: { "": { name: "fixture", version: "1.0.0" } },
+  }));
   write(root, "app.txt", "first\n");
   const base = commit(root, "baseline");
   write(root, "app.txt", "second\n");
   const head = commit(root, "source change");
-  write(root, "node_modules/nx/bin/nx.js", [
-    'const fs = require("node:fs");',
-    'fs.writeFileSync(process.env.FAKE_NX_LOG, JSON.stringify(process.argv.slice(2)));',
-    'process.exit(Number(process.env.FAKE_NX_EXIT || 0));',
-  ].join("\n"));
-  return { root, base, head, log: join(root, "node_modules", "nx-args.json") };
+  if (realNx) {
+    symlinkSync(join(sourceRoot, "node_modules"), join(root, "node_modules"), "dir");
+  } else {
+    write(root, "node_modules/nx/dist/bin/nx.js", [
+      'const fs = require("node:fs");',
+      'fs.writeFileSync(process.env.FAKE_NX_LOG, JSON.stringify(process.argv.slice(2)));',
+      'process.exit(Number(process.env.FAKE_NX_EXIT || 0));',
+    ].join("\n"));
+  }
+  mkdirSync(join(root, ".nx"), { recursive: true });
+  return { root, base, head, log: join(root, ".nx", "nx-args.json") };
 }
 
 function handoff(f, args = [`--base=${f.base}`, `--head=${f.head}`], env = {}) {
@@ -88,6 +110,21 @@ test("clean candidate runs fixed source tests through installed Nx without cache
     "run", "multiband-tests:test", "--skip-nx-cache", "--outputStyle=stream",
   ]);
   assert.match(result.stdout, /PASS \(fixed source tests\)/);
+});
+
+test("exact npm exec entry point forwards the SHA pair through installed Nx", () => {
+  const f = fixture({ realNx: true });
+  const result = command(f.root, "npm", [
+    "exec", "--", "nx", "run", "mission-rail-quality:may-handoff", "--",
+    `--base=${f.base}`, `--head=${f.head}`,
+  ], {
+    FAKE_NX_LOG: f.log,
+    npm_config_offline: "true",
+    NX_DAEMON: "false",
+  });
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}\n${git(f.root, "status", "--short", "--untracked-files=all")}`);
+  assert.equal(readFileSync(f.log, "utf8"), "fixed-source-test\n");
+  assert.match(result.stdout, /may-handoff: PASS/);
 });
 
 test("rejects duplicate, malformed, and extra caller arguments before tests", () => {

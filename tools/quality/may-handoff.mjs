@@ -72,7 +72,7 @@ try {
   if (changed.some(isAnchor)) throw new Error("base-to-head diff changes a validation trust anchor");
 
   // The task preflight must exclude anchors before this candidate-owned guard runs.
-  const nx = resolve(root, "node_modules/nx/bin/nx.js");
+  const nx = resolve(root, "node_modules/nx/dist/bin/nx.js");
   run(process.execPath, [nx, "run", "multiband-tests:test", "--skip-nx-cache", "--outputStyle=stream"], {
     label: "multiband-tests:test",
     env: { ...process.env, NX_DAEMON: "false", NX_SKIP_NX_CACHE: "true" },
