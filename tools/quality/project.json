@@ -1,0 +1,17 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "mission-rail-quality",
+  "root": "tools/quality",
+  "sourceRoot": "tools/quality",
+  "targets": {
+    "may-handoff": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node tools/quality/may-handoff.mjs",
+        "cwd": "{workspaceRoot}",
+        "forwardAllArgs": true
+      },
+      "cache": false
+    }
+  }
+}
